@@ -5,11 +5,14 @@ import com.example.bootingroomapp.models.Todo;
 import com.example.bootingroomapp.service.TodoService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -23,6 +26,11 @@ public class TodoServiceTest {
 
     @InjectMocks
     TodoService todoService;
+
+    //used to capture the arguments that were passed to a mocked method
+    @Captor
+    private ArgumentCaptor<Todo> todoCaptor;
+
 
     @Test
     public void shouldAddTodo() {
@@ -64,5 +72,79 @@ public class TodoServiceTest {
 
         assertEquals(2, results.size());
         verify(todoRepository).findAll();
+    }
+
+    @Test
+    public void shouldArchiveTodoCompleted() {
+        Todo todo = new Todo("blah");
+        todo.setCompleted(true);
+        Optional<Todo> optionalTodo = Optional.of(todo);
+        when(todoRepository.findById(1L)).thenReturn(optionalTodo);
+
+        todoService.archiveTodo(1L);
+        verify(todoRepository).archive(todo);
+    }
+
+    @Test
+    public void shouldArchiveTodoNotCompleted() {
+        Todo todo = new Todo("blah");
+        todo.setCompleted(false);
+        Optional<Todo> optionalTodo = Optional.of(todo);
+        when(todoRepository.findById(1L)).thenReturn(optionalTodo);
+
+        todoService.archiveTodo(1L);
+        verify(todoRepository, never()).archive(any());
+    }
+
+    @Test
+    public void shouldArchiveTodoException() {
+        when(todoRepository.findById(32L)).thenReturn(Optional.empty());
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            todoService.archiveTodo(32L);
+        });
+
+        assertEquals("Not found", exception.getMessage());
+        verify(todoRepository, never()).archive(any());
+    }
+
+    @Test
+    public void findCompleted() {
+        List<Todo> completedTodo = List.of(new Todo("hi", true), new Todo("hello", false));
+        when(todoRepository.findAll()).thenReturn(completedTodo);
+        List<Todo> completedExpected = completedTodo.stream().
+                filter(Todo::isCompleted).toList();
+
+        List<Todo> completed = todoService.findCompleted();
+
+        assertEquals(completedExpected, completed);
+    }
+
+    //todoCapture****
+    @Test
+    public void shouldUpdateText() {
+        Todo todo = new Todo("old");
+        when(todoRepository.findById(1L)).thenReturn(Optional.of(todo));
+
+        todoService.updateText(1L, "new");
+        verify(todoRepository).save(todoCaptor.capture());
+        assertEquals("new", todoCaptor.getValue().getText());
+    }
+
+    @Test
+    public void shouldDeleteByIdMissing() {
+        when(todoRepository.existsById(1L)).thenReturn(false);
+
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            todoService.deleteIfExists(1L);
+        });
+        assertEquals("Missing", exception.getMessage());
+        verify(todoRepository, never()).deleteById(any());
+    }
+
+    @Test
+    public void shouldDeleteById_Id_Exists() {
+        when(todoRepository.existsById(1L)).thenReturn(true);
+        todoService.deleteIfExists(1L);
+        verify(todoRepository).deleteById(1L);
     }
 }

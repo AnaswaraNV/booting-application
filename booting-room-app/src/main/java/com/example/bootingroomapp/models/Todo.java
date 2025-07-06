@@ -1,5 +1,7 @@
 package com.example.bootingroomapp.models;
 
+import javax.swing.text.StyledEditorKit;
+
 public class Todo {
     private Long id;
     private String text;
@@ -10,6 +12,11 @@ public class Todo {
     public Todo(String text) {
         this.text = text;
         this.completed = false;
+    }
+
+    public Todo(String text, boolean completed) {
+        this.text = text;
+        this.completed = completed;
     }
 
     public Long getId() { return id; }
